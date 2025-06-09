@@ -1,0 +1,61 @@
+library(ggplot2)
+
+# Zeta potential values for each nanoparticle group
+combined_data <- data.frame(
+  Group = rep(c("CTAC_MSNP", "Bare_MSN", "NH2_MSN", 
+                "RB_MSN", "FITC_MSNP", "FITC_RB_MSNP"), each = 3),
+  ZetaPotential = c(
+    75.2, 75.8, 72.6,
+    -26.5, -26.5, -25.7,
+    38.0, 37.6, 38.1,
+    12.8, 12.8, 12.8,
+    -17.8, -18.0, -17.4,
+    24.2, 24.5, 23.8
+  )
+)
+
+# Mean and SD
+summary_combined <- aggregate(ZetaPotential ~ Group, combined_data,
+                              function(x) c(mean = mean(x), sd = sd(x)))
+summary_combined <- do.call(data.frame, summary_combined)
+colnames(summary_combined) <- c("Group", "Mean", "SD")
+
+# Group order and color assignment
+summary_combined$Group <- factor(summary_combined$Group,
+                                 levels = c("CTAC_MSNP", "Bare_MSN", 
+                                            "NH2_MSN", "RB_MSN", 
+                                            "FITC_MSNP", "FITC_RB_MSNP"))
+all_colors <- setNames(
+  c("#0000FF", "#8000FF", "#FF0080", "#FF0000", "#00C853", "#BA4A6F"),
+  levels(summary_combined$Group)
+)
+
+# Plot
+plot_zeta <- ggplot(summary_combined, aes(x = Group, y = Mean, fill = Group)) +
+  geom_bar(stat = "identity", color = "black", width = 0.8, show.legend = FALSE) +
+  geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD),
+                width = 0.4, size = 1) +
+  geom_hline(yintercept = 0, color = "black", size = 0.4) +
+  geom_text(aes(label = sprintf("%.1f", Mean),
+                vjust = ifelse(Mean < 0, 1.5, -0.7)),
+            size = 6, color = "black") +
+  scale_fill_manual(values = all_colors) +
+  scale_x_discrete(labels = c(
+    "CTAC_MSNP"     = expression(bold("CTAC–MSNP")),
+    "Bare_MSN"      = expression(bold("MSNP")),
+    "NH2_MSN"       = expression(bold("MSNP–NH"[2])),
+    "RB_MSN"        = expression(bold("MSNP–RB")),
+    "FITC_MSNP"     = expression(bold("FITC–MSNP")),
+    "FITC_RB_MSNP"  = expression(bold("FITC–MSNP–RB"))
+  )) +
+  labs(x = NULL, y = "Zeta Potential (mV)") +
+  coord_cartesian(
+    ylim = c(
+      min(summary_combined$Mean - summary_combined$SD) - 5,
+      max(summary_combined$Mean + summary_combined$SD) + 10
+    ),
+    clip = "off"
+  ) +
+  theme_bw(base_size = 16)
+
+print(plot_zeta)
