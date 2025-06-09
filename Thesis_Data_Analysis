@@ -1,0 +1,108 @@
+\chapter{R Code for SOSG Fluorescence Intensity Analysis}
+
+\section*{Appendix B: R Script – Fold Change Comparison Between SOSG and SOSG + MSNP-RB}
+
+\noindent This R script calculates fluorescence fold change in SOSG and SOSG + MSNP-RB conditions, checks for variance equality, and visualizes the results using a bar graph with significance testing.
+
+\begin{lstlisting}[language=R, caption={R script for fluorescence fold change analysis}, basicstyle=\ttfamily\small, breaklines=true]
+# ────────────────────────────────────────────────────────────────
+# LIBRARIES
+# ────────────────────────────────────────────────────────────────
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+
+# ────────────────────────────────────────────────────────────────
+# 1. Create Data and Calculate Fold Change
+# ────────────────────────────────────────────────────────────────
+data <- data.frame(
+  Condition = rep(c("SOSG", "SOSG + MSNP-RB"), each = 3),
+  Before = c(1033066, 1445041, 1129855, 1407431, 1570329, 1312521),
+  After = c(1051593, 1281365, 1218708, 2499802, 2676493, 2294239)
+) %>%
+  mutate(
+    FoldChange = After / Before,
+    Condition = factor(Condition, levels = c("SOSG", "SOSG + MSNP-RB"))
+  )
+
+# ────────────────────────────────────────────────────────────────
+# 2. Summary Statistics for Error Bars
+# ────────────────────────────────────────────────────────────────
+summary_stats <- data %>%
+  group_by(Condition) %>%
+  summarise(
+    Mean = mean(FoldChange),
+    SD = sd(FoldChange),
+    .groups = "drop"
+  )
+
+# ────────────────────────────────────────────────────────────────
+# 3. Bar Plot with Jitter and Student’s t-test (equal variances)
+# ────────────────────────────────────────────────────────────────
+fill_cols <- c("SOSG" = "#009E73", "SOSG + MSNP-RB" = "#FF0000")
+y_bracket <- max(data$FoldChange) + 0.25
+
+ggplot(data, aes(x = Condition, y = FoldChange, fill = Condition)) +
+  geom_bar(stat = "summary", fun = mean, width = 0.6, colour = "black") +
+  geom_errorbar(
+    data = summary_stats,
+    aes(y = Mean, ymin = Mean - SD, ymax = Mean + SD),
+    width = 0.2, colour = "black"
+  ) +
+  geom_jitter(width = 0.15, size = 3, colour = "black", show.legend = FALSE) +
+  stat_compare_means(
+    method = "t.test",
+    method.args = list(var.equal = TRUE),
+    comparisons = list(c("SOSG", "SOSG + MSNP-RB")),
+    label = "p.signif",
+    tip.length = 0.02,
+    label.y = y_bracket,
+    colour = "black"
+  ) +
+  scale_fill_manual(
+    values = fill_cols,
+    labels = c("SOSG (control)", "SOSG + MSNP-RB")
+  ) +
+  scale_x_discrete(
+    labels = c("SOSG (control)", "SOSG + MSNP-RB")
+  ) +
+  labs(
+    x = "",
+    y = "Fluorescence Fold Change"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    panel.grid.major    = element_blank(),
+    panel.grid.minor    = element_blank(),
+    legend.position     = "none",
+    plot.title          = element_text(colour = "black", size = 16, face = "bold"),
+    axis.title.x        = element_text(colour = "black", size = 16, face = "bold", margin = margin(t = 10)),
+    axis.title.y        = element_text(colour = "black", size = 16, face = "bold", margin = margin(r = 10)),
+    axis.text.x         = element_text(colour = "black", size = 14, face = "bold"),
+    axis.text.y         = element_text(colour = "black", size = 14, face = "bold")
+  )
+
+# ────────────────────────────────────────────────────────────────
+# 4. Statistical Tests for Reporting
+# ────────────────────────────────────────────────────────────────
+
+# Variance check
+cat("Variances by group:\n")
+print(tapply(data$FoldChange, data$Condition, var))
+
+# F-test for equality of variances
+cat("\nF-test for equal variances:\n")
+print(var.test(FoldChange ~ Condition, data = data))
+
+# Student’s t-test (equal variances)
+cat("\nStudent’s t-test (equal variances):\n")
+print(t.test(FoldChange ~ Condition, data = data, var.equal = TRUE))
+
+# Welch’s t-test (default in R, unequal variances)
+cat("\nWelch’s t-test (unequal variances):\n")
+print(t.test(FoldChange ~ Condition, data = data, var.equal = FALSE))
+
+# Wilcoxon test (non-parametric)
+cat("\nWilcoxon rank-sum test:\n")
+print(wilcox.test(FoldChange ~ Condition, data = data))
+\end{lstlisting}
