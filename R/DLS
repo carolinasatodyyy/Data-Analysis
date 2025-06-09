@@ -1,0 +1,54 @@
+library(tidyverse)
+
+# Read DLS data
+dls_raw <- read_csv("dls_data.csv") # saved as a dls file and just opened first
+
+# Transform to long format
+dls_tidy <- dls_raw %>%
+  pivot_longer(
+    cols      = c(FITC_MSNP, Bare_MSNP),
+    names_to  = "Sample",
+    values_to = "Intensity"
+  )
+dls_tidy$Sample <- factor(dls_tidy$Sample, levels = c("Bare_MSNP", "FITC_MSNP"))
+
+# Colors
+custom_colors <- c("Bare_MSNP" = "#8000FF", "FITC_MSNP" = "#00C853")
+
+# Plot
+plot_dls <- ggplot(dls_tidy, aes(x = Size_nm, y = Intensity, colour = Sample)) +
+  geom_line(size = 1.5) +
+  scale_x_log10(
+    limits = c(10, 10000),
+    breaks = c(10, 30, 100, 300, 1000, 10000),
+    labels = scales::comma_format(accuracy = 1)
+  ) +
+  annotation_logticks(sides = "b") +
+  scale_colour_manual(
+    name = NULL,
+    values = custom_colors,
+    labels = c("MSNP", "FITC–MSNP")
+  ) +
+  labs(
+    x = "Size (d.nm, log scale)",
+    y = "Intensity (%)"
+  ) +
+  theme_bw(base_size = 18) +
+  theme(
+    text               = element_text(family = "sans", color = "black"),
+    axis.text.x        = element_text(size = 17, face = "bold"),
+    axis.text.y        = element_text(size = 25, face = "bold"),
+    axis.title.y       = element_text(size = 25, face = "bold"),
+    axis.title.x       = element_text(size = 25, face = "bold", margin = margin(t = 10)),
+    panel.grid.major   = element_blank(),
+    panel.grid.minor   = element_blank(),
+    plot.margin        = margin(t = 10, r = 10, b = 40, l = 10),
+    legend.position    = "bottom",
+    legend.justification = "center",
+    legend.direction   = "horizontal",
+    legend.text        = element_text(size = 25, face = "bold"),
+    legend.key.size    = unit(1.0, "cm"),
+    legend.key         = element_blank()
+  )
+
+print(plot_dls)
