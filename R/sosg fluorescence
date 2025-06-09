@@ -1,0 +1,89 @@
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(patchwork)
+
+# Open files
+df_control <- read_csv("…", skip = 3, col_names = FALSE)
+df_msnrb   <- read_csv("…", skip = 3, col_names = FALSE)
+
+# Named each
+colnames(df_control) <- c("λ_before", "F_before", "λ_after", "F_after")
+colnames(df_msnrb)   <- colnames(df_control)
+
+# Convert to long form
+to_long <- function(df, sample_label) {
+  bind_rows(
+    df %>% select(Wavelength = λ_before, Intensity = F_before) %>% mutate(Time = "Before"),
+    df %>% select(Wavelength = λ_after,  Intensity = F_after)  %>% mutate(Time = "After")
+  ) %>%
+  mutate(Sample = sample_label,
+         Time   = factor(Time, levels = c("Before", "After")))
+}
+
+control_long <- to_long(df_control, "Control")
+msnrb_long   <- to_long(df_msnrb,   "RB-MSNP")
+
+# Find global λₘₐₓ from the RB-MSNP “After” trace 
+ref_peak_wl <- msnrb_long %>%
+  filter(Time == "After") %>%
+  slice_max(Intensity, n = 1) %>%
+  pull(Wavelength) %>%
+  round()
+
+# Compute annotation y-positions 
+label_y <- function(df) {
+  df %>%
+    filter(Time == "After") %>%
+    slice_min(abs(Wavelength - ref_peak_wl), with_ties = FALSE) %>%
+    pull(Intensity) * 1.04
+}
+
+label_control_y <- label_y(control_long)
+label_msnrb_y   <- label_y(msnrb_long)
+
+# ─── 5) Define palette, y‐limits, common theme ───────────────────────────────
+my_cols    <- c("Before" = "#0072B2", "After" = "#E69F00")
+y_limits   <- c(0, max(msnrb_long$Intensity, control_long$Intensity) * 1.05)
+y_breaks   <- pretty(y_limits, n = 6)
+common_thm <- theme_bw(base_size = 16) +
+  theme(
+    panel.grid       = element_blank(),
+    legend.position  = "none",
+    axis.title       = element_text(size = 20, face = "bold"),
+    axis.text        = element_text(size = 18, face = "bold")
+  )
+
+# make the plot control
+p1 <- ggplot(control_long, aes(Wavelength, Intensity, colour = Time)) +
+  geom_line(size = 1.3) +
+  geom_vline(xintercept = ref_peak_wl, linetype = "dotted", size = 1, colour = "black") +
+  annotate("text",
+           x     = ref_peak_wl + 5,
+           y     = label_control_y,
+           label = paste0(ref_peak_wl, " nm"),
+           size  = 6, fontface = "bold", hjust = 0) +
+  scale_colour_manual(values = my_cols) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks, labels = comma) +
+  labs(x = "Wavelength (nm)", y = "Fluo. Intensity (cps/µA)") +
+  common_thm
+
+#  make the plot MSNP-RB
+p2 <- ggplot(msnrb_long, aes(Wavelength, Intensity, colour = Time)) +
+  geom_line(size = 1.3) +
+  geom_vline(xintercept = ref_peak_wl, linetype = "dotted", size = 1, colour = "black") +
+  annotate("text",
+           x     = ref_peak_wl + 5,
+           y     = label_msnrb_y,
+           label = paste0(ref_peak_wl, " nm"),
+           size  = 6, fontface = "bold", hjust = 0) +
+  scale_colour_manual(values = my_cols) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks, labels = comma) +
+  labs(x = "Wavelength (nm)", y = "Fluo. Intensity (cps/µA)") +
+  common_thm
+
+# Combine side-by-side
+combined_plot <- p1 + p2 + plot_layout(ncol = 2)
+print(combined_plot)
