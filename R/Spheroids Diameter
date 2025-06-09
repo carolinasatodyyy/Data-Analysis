@@ -1,0 +1,66 @@
+# Load required packages
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+
+# Raw measurements nc = non-cleared, gf= glycerol-fructose (cleared)
+nc_vert  <- c(read.csv)
+nc_horiz <- c(read.csv)
+gf_vert  <- c(read.csv)
+gf_horiz <- c(read.csv)
+
+# Compute diameters and assemble data frame
+df_raw <- tibble(
+  Condition = rep(c("Control", "Cleared"), each = 14),
+  Diameter  = c((nc_vert + nc_horiz) / 2, (gf_vert + gf_horiz) / 2)
+)
+
+# Summary stats and unpaired t-test
+summary_stats <- df_raw %>%
+  group_by(Condition) %>%
+  summarise(
+    mean_d = mean(Diameter),
+    sd_d   = sd(Diameter),
+    n      = n(),
+    .groups = "drop"
+  )
+
+tt <- t.test(Diameter ~ Condition, data = df_raw, var.equal = TRUE)
+
+print(summary_stats)
+cat(sprintf(
+  "t = %.2f, df = %.0f, p = %.3f\n",
+  tt$statistic, tt$parameter, tt$p.value
+))
+
+# Prepare for plotting (mean ± SEM)
+df_sum <- summary_stats %>%
+  mutate(se_d = sd_d / sqrt(n))
+
+# Custom palette
+pal <- c("Control" = "darkgreen", "Cleared" = "orange")
+
+# Plot
+ggplot(df_sum, aes(x = Condition, y = mean_d, fill = Condition)) +
+  geom_col(color = "black", width = 0.6) +
+  geom_errorbar(aes(ymin = mean_d - se_d, ymax = mean_d + se_d),
+                width = 0.1, size = 0.8) +
+  geom_jitter(data = df_raw, aes(x = Condition, y = Diameter),
+              width = 0.15, size = 2, shape = 21, fill = "white") +
+  stat_compare_means(
+    aes(x = Condition, y = Diameter),
+    method = "t.test", var.equal = TRUE,
+    label   = "p.signif",
+    label.y = max(df_sum$mean_d + df_sum$se_d) * 1.1,
+    size    = 5, colour = "black"
+  ) +
+  scale_fill_manual(values = pal) +
+  labs(x = NULL, y = "Diameter (µm)") +
+  theme_bw(base_size = 16) +
+  theme(
+    panel.grid       = element_blank(),
+    legend.position  = "none",
+    axis.title.y     = element_text(size = 22, face = "bold"),
+    axis.text        = element_text(size = 20, face = "bold"),
+    plot.title       = element_text(size = 18, face = "bold", hjust = 0.5)
+  )
