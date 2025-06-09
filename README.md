@@ -1,0 +1,12 @@
+This repository contains R scripts used to analyze and visualize experimental data for my Master's thesis on "Rose Bengal Loaded Mesoporous Silica Nanoparticles for High- Efficiency Photodynamic Therapy"
+- R ≥ 4.0  
+- Libraries: `ggplot2`, `dplyr`, `ggpubr`, `readr`, `tidyr`, `scales`
+- All data including graphs and statistical analysis that were performed in R are included in this file
+- Including:
+-   Cell Viability
+-   DLS
+-   Zeta-Potential
+-   Spheroid Diameter
+-   SOSG analysis
+-   UV-VIS
+-   Spheroid Depth
